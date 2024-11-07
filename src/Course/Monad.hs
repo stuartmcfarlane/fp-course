@@ -36,8 +36,7 @@ instance Monad ExactlyOne where
     (a -> ExactlyOne b)
     -> ExactlyOne a
     -> ExactlyOne b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance ExactlyOne"
+  (=<<) f eoa = f (runExactlyOne eoa)
 
 -- | Binds a function on a List.
 --
@@ -48,8 +47,7 @@ instance Monad List where
     (a -> List b)
     -> List a
     -> List b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance List"
+  (=<<) = flatMap
 
 -- | Binds a function on an Optional.
 --
@@ -60,8 +58,8 @@ instance Monad Optional where
     (a -> Optional b)
     -> Optional a
     -> Optional b
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance Optional"
+  (=<<) _ Empty = Empty
+  (=<<) f (Full a) = f a
 
 -- | Binds a function on the reader ((->) t).
 --
@@ -72,16 +70,12 @@ instance Monad ((->) t) where
     (a -> ((->) t b))
     -> ((->) t a)
     -> ((->) t b)
-  (=<<) =
-    error "todo: Course.Monad (=<<)#instance ((->) t)"
+  (=<<) f ta t = (f (ta t)) t
 
 -- | Witness that all things with (=<<) and (<$>) also have (<*>).
 --
 -- >>> ExactlyOne (+10) <**> ExactlyOne 8
 -- ExactlyOne 18
---
--- >>> (+1) :. (*2) :. Nil <**> 1 :. 2 :. 3 :. Nil
--- [2,3,4,2,4,6]
 --
 -- >>> Full (+8) <**> Full 7
 -- Full 15
@@ -106,13 +100,15 @@ instance Monad ((->) t) where
 --
 -- >>> ((*) <**> (+2)) 3
 -- 15
+-- >>> (+1) :. (*2) :. Nil <**> 1 :. 2 :. 3 :. Nil
+-- [2,3,4,2,4,6]
+--
 (<**>) ::
   Monad k =>
   k (a -> b)
   -> k a
   -> k b
-(<**>) =
-  error "todo: Course.Monad#(<**>)"
+(<**>) kf ka =  ((\f -> (\a -> f a) <$> ka)) =<< kf
 
 infixl 4 <**>
 
@@ -133,8 +129,7 @@ join ::
   Monad k =>
   k (k a)
   -> k a
-join =
-  error "todo: Course.Monad#join"
+join kka = (\x -> x) =<< kka
 
 -- | Implement a flipped version of @(=<<)@, however, use only
 -- @join@ and @(<$>)@.
@@ -142,13 +137,14 @@ join =
 --
 -- >>> ((+10) >>= (*)) 7
 -- 119
+-- >>> Full 7 >>= (\n -> Full (n + n))
+-- Full 14
 (>>=) ::
   Monad k =>
   k a
   -> (a -> k b)
   -> k b
-(>>=) =
-  error "todo: Course.Monad#(>>=)"
+(>>=) ka akb = join (akb <$> ka)
 
 infixl 1 >>=
 
@@ -163,8 +159,7 @@ infixl 1 >>=
   -> (a -> k b)
   -> a
   -> k c
-(<=<) =
-  error "todo: Course.Monad#(<=<)"
+(<=<) g f a = g =<< (f a)
 
 infixr 1 <=<
 
